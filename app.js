@@ -757,6 +757,68 @@ function seedNeedsIfEmpty(){
 
 seedNeedsIfEmpty();
 
+// Agregar en bloque items proporcionados por el usuario sin duplicados
+function addBulkNeeds(items){
+  const existing = new Set((state.needs||[]).map(n=>String(n.name||'').trim().toLowerCase()))
+  let added = 0
+  items.forEach(it=>{
+    const name = String(it.name||'').trim()
+    if(!name) return
+    if(existing.has(name.toLowerCase())) return
+    const base = {description:'', price:0, urgency:5, status: 'Pendiente'}
+    const entry = Object.assign(base, it)
+    state.needs.push(entry)
+    existing.add(name.toLowerCase())
+    added++
+  })
+  if(added>0) save()
+  return added
+}
+
+// Lista enviada por el usuario (dos primeros marcados LISTO)
+const userNeeds = [
+  {name: 'Batidora', status: 'Listo'},
+  {name: 'Espatulas de silicona', status: 'Listo'},
+  {name: 'Mangas descartables'},
+  {name: 'Batidor de mano'},
+  {name: 'Picos'},
+  {name: 'Rayador'},
+  {name: 'Bowls'},
+  {name: 'Moldes de tortas'},
+  {name: 'Moldes de tartas'},
+  {name: 'Medidor'},
+  {name: 'Tamizador'},
+  {name: 'Mini procesadora'},
+  {name: 'Palo de amazar (grande)'},
+  {name: 'Lámina antiadherente de silicona'},
+  {name: 'Cortantes'},
+  {name: 'Pincel de silicona'},
+  {name: 'Espatulas de acero'},
+  {name: 'Alisador'},
+  {name: 'Balanza'},
+  {name: 'Base giratoria'},
+  {name: 'Soplete + Gas'},
+  {name: 'Molde de cupcakes'},
+  {name: 'Rejilla con patitas de fierro'},
+  {name: 'Termómetro'},
+  {name: 'Caja de colorantes'},
+  {name: 'Mueble para guardar'},
+  {name: 'Trapos'},
+  {name: 'Guantes de latex'},
+  {name: 'Moldes de acetato de chocolates'},
+  {name: 'Cucharas medidoras'},
+  {name: 'Exprimidor de limón'},
+  {name: 'Cuchillos de pasteleria'},
+  {name: 'Tuppers'}
+]
+
+const addedCount = addBulkNeeds(userNeeds)
+if(addedCount>0){
+  // Si la vista actual es 'needs', refrescar la lista; en cualquier caso re-render
+  if(currentView === 'needs') refreshNeedsList()
+  else renderView(currentView)
+}
+
 applyProfile(); setActive('dashboard'); scheduleCheck()
 
 // small helpers
