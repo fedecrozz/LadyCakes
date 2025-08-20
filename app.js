@@ -35,6 +35,9 @@ let state = {
   notes: [],
   tasks: [],
   recipes: [],
+  products: [],
+  inventory: [], // {itemName, qty, unit}
+  orders: [], // customer orders
   reminders: []
 }
 
@@ -134,6 +137,12 @@ function renderView(view){
     renderTasks(c)
   } else if(view === 'recipes'){
     renderRecipes(c)
+  } else if(view === 'products'){
+    renderProducts(c)
+  } else if(view === 'inventory'){
+    renderInventory(c)
+  } else if(view === 'orders'){
+    renderOrders(c)
   } else if(view === 'reminders'){
     renderReminders(c)
   } else if(view === 'settings'){
@@ -474,6 +483,248 @@ function renderRecipes(container){
   container.appendChild(card)
   document.getElementById('addRecipeBtn').addEventListener('click', ()=>openRecipeEditor())
   refreshRecipesList()
+}
+
+// Products
+function renderProducts(container){
+  const card = document.createElement('div'); card.className='card'
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3>Productos de venta</h3>
+      <button id="addProductBtn" class="btn primary">+ Nuevo producto</button>
+    </div>
+    <p class="small-muted">Agrega productos (tartas, tortas, cupcakes) con foto, precio y descripción.</p>
+    <div id="productsList" style="margin-top:12px"></div>
+  `
+  container.appendChild(card)
+  document.getElementById('addProductBtn').addEventListener('click', ()=>openProductEditor())
+  refreshProductsList()
+}
+
+function refreshProductsList(){
+  const list = document.getElementById('productsList')
+  list.innerHTML = ''
+  if(!state.products || state.products.length===0){ list.innerHTML = '<p class="small-muted">No hay productos.</p>'; return }
+  const grid = document.createElement('div'); grid.className='product-grid'
+  state.products.forEach((p,idx)=>{
+    const el = document.createElement('div'); el.className='product-card'
+    el.innerHTML = `
+      ${p.image? `<img src="${p.image}" alt="${escapeHtml(p.name)}">` : '<div style="height:140px;background:linear-gradient(90deg,#fff,#f7f7f9);border-radius:8px"></div>'}
+      <div style="flex:1">
+        <strong>${escapeHtml(p.name)}</strong>
+        <div class="small-muted">${escapeHtml(p.description||'')}</div>
+        <div style="margin-top:8px;font-weight:700">$${p.price || 0}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" data-idx="${idx}" data-act="edit">Editar</button>
+        <button class="btn" data-idx="${idx}" data-act="del">Eliminar</button>
+      </div>
+    `
+    grid.appendChild(el)
+  })
+  list.appendChild(grid)
+  list.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{
+    const idx = Number(b.getAttribute('data-idx'))
+    const act = b.getAttribute('data-act')
+    if(act==='edit') openProductEditor(state.products[idx], idx)
+    if(act==='del'){ if(confirm('Eliminar producto?')){ state.products.splice(idx,1); save(); refreshProductsList() } }
+  }))
+}
+
+function openProductEditor(item=null, idx=null){
+  const modal = createModal(item? 'Editar producto':'Nuevo producto')
+  const card = modal.querySelector('.modal-card')
+  card.innerHTML = `
+    <h3>${item? 'Editar producto':'Nuevo producto'}</h3>
+    <label>Nombre</label>
+    <input id="p_name" class="input" value="${item?escapeHtml(item.name||''):''}">
+    <label>Descripción</label>
+    <textarea id="p_desc" class="input" rows="3">${item?escapeHtml(item.description||''):''}</textarea>
+    <div class="form-row">
+      <input id="p_price" class="input" type="number" placeholder="Precio" value="${item?item.price||0:0}">
+      <input id="p_qty" class="input" type="number" placeholder="Stock (opcional)" value="${item?item.stock||0:''}">
+    </div>
+    <label>Foto</label>
+    <input id="p_image" type="file" accept="image/*">
+    <div id="p_preview" style="margin-top:8px">${item && item.image? `<div class='file-preview'><img src='${item.image}' style='width:100%;height:100%;object-fit:cover'></div>`: ''}</div>
+    <div class="actions">
+      <button id="saveProduct" class="btn primary">Guardar</button>
+      <button id="cancelProduct" class="btn">Cancelar</button>
+    </div>
+  `
+  document.body.appendChild(modal)
+  const inputImage = modal.querySelector('#p_image')
+  const preview = modal.querySelector('#p_preview')
+  inputImage.addEventListener('change', (e)=>{
+    const f = e.target.files[0]; if(!f) return
+    const reader = new FileReader(); reader.onload = ev=>{ preview.innerHTML = `<div class='file-preview'><img src='${ev.target.result}' style='width:100%;height:100%;object-fit:cover'></div>`; preview.dataset.img = ev.target.result }
+    reader.readAsDataURL(f)
+  })
+  modal.querySelector('#cancelProduct').addEventListener('click', ()=>modal.remove())
+  modal.querySelector('#saveProduct').addEventListener('click', ()=>{
+    const name = modal.querySelector('#p_name').value.trim(); if(!name) return alert('Nombre requerido')
+    const desc = modal.querySelector('#p_desc').value.trim()
+    const price = Number(modal.querySelector('#p_price').value) || 0
+    const stock = Number(modal.querySelector('#p_qty').value) || 0
+    const image = preview.dataset.img || (item? item.image: '')
+    const obj = {name,description:desc,price,stock,image}
+    if(idx==null) state.products.push(obj)
+    else state.products[idx] = obj
+    save(); modal.remove(); refreshProductsList()
+  })
+}
+
+// Inventory
+function renderInventory(container){
+  const card = document.createElement('div'); card.className='card'
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3>Inventario / Materia prima</h3>
+      <button id="addInvBtn" class="btn primary">+ Agregar insumo</button>
+    </div>
+    <div id="invList" style="margin-top:12px"></div>
+  `
+  container.appendChild(card)
+  document.getElementById('addInvBtn').addEventListener('click', ()=>openInventoryEditor())
+  refreshInventory()
+}
+
+function refreshInventory(){
+  const list = document.getElementById('invList')
+  list.innerHTML = ''
+  if(!state.inventory || state.inventory.length===0){ list.innerHTML = '<p class="small-muted">Sin insumos.</p>'; return }
+  const table = document.createElement('table'); table.className='table'
+  table.innerHTML = `<thead><tr><th>Insumo</th><th>Cantidad</th><th>Unidad</th><th></th></tr></thead><tbody>${state.inventory.map((it,idx)=>`<tr><td>${escapeHtml(it.itemName)}</td><td>${it.qty}</td><td>${escapeHtml(it.unit||'')}</td><td><button data-idx="${idx}" class="btn">Editar</button> <button data-idx="${idx}" class="btn">Eliminar</button></td></tr>`).join('')}</tbody>`
+  list.appendChild(table)
+  list.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{
+    const idx = Number(b.getAttribute('data-idx'))
+    if(b.textContent.trim()==='Eliminar'){ if(confirm('Eliminar insumo?')){ state.inventory.splice(idx,1); save(); refreshInventory() } }
+    else openInventoryEditor(state.inventory[idx], idx)
+  }))
+}
+
+function openInventoryEditor(item=null, idx=null){
+  const modal = createModal(item? 'Editar insumo':'Nuevo insumo')
+  const card = modal.querySelector('.modal-card')
+  card.innerHTML = `
+    <h3>${item? 'Editar insumo':'Nuevo insumo'}</h3>
+    <label>Nombre del insumo</label>
+    <input id="inv_name" class="input" value="${item?escapeHtml(item.itemName||''):''}">
+    <div class="form-row">
+      <input id="inv_qty" class="input" type="number" placeholder="Cantidad" value="${item?item.qty||0:0}">
+      <input id="inv_unit" class="input" placeholder="Unidad (kg, gr, unid)" value="${item?escapeHtml(item.unit||''):''}">
+    </div>
+    <div class="actions">
+      <button id="saveInv" class="btn primary">Guardar</button>
+      <button id="cancelInv" class="btn">Cancelar</button>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.querySelector('#cancelInv').addEventListener('click', ()=>modal.remove())
+  modal.querySelector('#saveInv').addEventListener('click', ()=>{
+    const name = modal.querySelector('#inv_name').value.trim(); if(!name) return alert('Nombre requerido')
+    const qty = Number(modal.querySelector('#inv_qty').value) || 0
+    const unit = modal.querySelector('#inv_unit').value.trim()
+    const obj = {itemName: name, qty, unit}
+    if(idx==null) state.inventory.push(obj)
+    else state.inventory[idx] = obj
+    save(); modal.remove(); refreshInventory()
+  })
+}
+
+// Orders
+function renderOrders(container){
+  const card = document.createElement('div'); card.className='card'
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3>Pedidos</h3>
+      <button id="addOrderBtn" class="btn primary">+ Nuevo pedido</button>
+    </div>
+    <div id="ordersList" style="margin-top:12px"></div>
+  `
+  container.appendChild(card)
+  document.getElementById('addOrderBtn').addEventListener('click', ()=>openOrderEditor())
+  refreshOrders()
+}
+
+function refreshOrders(){
+  const list = document.getElementById('ordersList')
+  list.innerHTML = ''
+  if(!state.orders || state.orders.length===0){ list.innerHTML = '<p class="small-muted">Sin pedidos.</p>'; return }
+  state.orders.forEach((o,idx)=>{
+    const el = document.createElement('div'); el.className='card'
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong>${escapeHtml(o.customer||'Pedido')}</strong>
+          <div class="small-muted">${new Date(o.created).toLocaleString()}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" data-idx="${idx}" data-act="view">Ver</button>
+          <button class="btn" data-idx="${idx}" data-act="del">Eliminar</button>
+        </div>
+      </div>
+      <div style="margin-top:8px">${o.items.map(i=>`<div>${escapeHtml(i.name)} x ${i.qty}</div>`).join('')}</div>
+    `
+    list.appendChild(el)
+  })
+  list.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const idx = Number(b.getAttribute('data-idx'))
+      const act = b.getAttribute('data-act')
+      if(act==='view') viewOrder(state.orders[idx])
+      if(act==='del'){ if(confirm('Eliminar pedido?')){ state.orders.splice(idx,1); save(); refreshOrders() } }
+    })
+  })
+}
+
+function openOrderEditor(){
+  const modal = createModal('Nuevo pedido')
+  const card = modal.querySelector('.modal-card')
+  // product options
+  const options = (state.products||[]).map((p,idx)=>`<option value="${idx}">${escapeHtml(p.name)}</option>`).join('')
+  card.innerHTML = `
+    <h3>Nuevo pedido</h3>
+    <label>Cliente</label>
+    <input id="o_customer" class="input" placeholder="Nombre del cliente">
+    <label>Producto</label>
+    <div class="form-row">
+      <select id="o_product" class="input" style="flex:2">${options}</select>
+      <input id="o_qty" class="input" type="number" placeholder="Cantidad" style="width:100px">
+      <button id="o_add" class="btn">Agregar</button>
+    </div>
+    <div id="o_items" style="margin-top:8px"></div>
+    <div class="actions">
+      <button id="saveOrder" class="btn primary">Guardar pedido</button>
+      <button id="cancelOrder" class="btn">Cancelar</button>
+    </div>
+  `
+  document.body.appendChild(modal)
+  const items = []
+  const elItems = modal.querySelector('#o_items')
+  modal.querySelector('#o_add').addEventListener('click', ()=>{
+    const pIdx = Number(modal.querySelector('#o_product').value)
+    const qty = Number(modal.querySelector('#o_qty').value) || 0
+    if(isNaN(pIdx) || !state.products[pIdx]) return alert('Selecciona un producto')
+    if(qty<=0) return alert('Cantidad > 0')
+    const prod = state.products[pIdx]
+    items.push({name: prod.name, qty})
+    elItems.innerHTML = items.map((it,i)=>`<div>${escapeHtml(it.name)} x ${it.qty} <button data-i="${i}" class="btn">Eliminar</button></div>`).join('')
+    // attach remove
+    elItems.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ items.splice(Number(b.getAttribute('data-i')),1); elItems.innerHTML = items.map((it,i)=>`<div>${escapeHtml(it.name)} x ${it.qty} <button data-i="${i}" class="btn">Eliminar</button></div>`).join('') }))
+  })
+  modal.querySelector('#cancelOrder').addEventListener('click', ()=>modal.remove())
+  modal.querySelector('#saveOrder').addEventListener('click', ()=>{
+    const customer = modal.querySelector('#o_customer').value.trim() || 'Cliente'
+    if(items.length===0) return alert('Agrega al menos un item')
+    const obj = {customer, items, created: Date.now()}
+    // deduct stock if product stock present
+    items.forEach(it=>{
+      const prod = state.products.find(p=>p.name===it.name)
+      if(prod && typeof prod.stock === 'number') prod.stock = Math.max(0, prod.stock - it.qty)
+    })
+    state.orders.push(obj); save(); modal.remove(); refreshOrders(); refreshProductsList()
+  })
 }
 
 function refreshRecipesList(){
