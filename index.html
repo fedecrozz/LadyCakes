@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LadyCakes - Administración</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo-wrap" id="logoWrap">
+          <img id="logoImg" src="" alt="Logo" hidden>
+          <div id="logoPlaceholder">LC</div>
+        </div>
+        <div>
+          <h1 id="bizName">LadyCakes</h1>
+          <button id="editProfileBtn" class="btn small">Editar emprendimiento</button>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn active" data-view="dashboard">Inicio</button>
+        <button class="nav-btn" data-view="needs">Cosas necesarias</button>
+        <button class="nav-btn" data-view="notes">Anotaciones</button>
+        <button class="nav-btn" data-view="tasks">Tareas</button>
+        <button class="nav-btn" data-view="recipes">Recetas</button>
+        <button class="nav-btn" data-view="reminders">Recordatorios</button>
+        <button class="nav-btn" data-view="settings">Ajustes</button>
+      </nav>
+      <div class="sidebar-footer">
+        <small>Guardado local · ❤️</small>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="main-header">
+        <h2 id="viewTitle">Inicio</h2>
+        <div class="header-actions">
+          <button id="exportBtn" class="btn">Exportar</button>
+          <button id="importBtn" class="btn">Importar</button>
+          <input id="fileInput" type="file" accept="application/json" hidden>
+        </div>
+      </header>
+
+      <section class="content" id="content">
+        <!-- Dynamic content inserted by JS -->
+      </section>
+    </main>
+  </div>
+
+  <!-- Profile modal -->
+  <div class="modal" id="profileModal" aria-hidden="true">
+    <div class="modal-card">
+      <h3>Editar emprendimiento</h3>
+      <label>Nombre</label>
+      <input id="inputBizName" type="text" placeholder="Nombre del emprendimiento">
+      <label>Logo</label>
+      <input id="inputLogo" type="file" accept="image/*">
+      <label>Descripción</label>
+      <textarea id="inputBizDesc" rows="3" placeholder="Descripción breve"></textarea>
+      <label>Contacto / Info importante</label>
+      <input id="inputBizContact" type="text" placeholder="Teléfono, IG o email">
+      <div class="modal-actions">
+        <button id="saveProfileBtn" class="btn primary">Guardar</button>
+        <button id="cancelProfileBtn" class="btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
